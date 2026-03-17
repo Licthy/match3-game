@@ -6,6 +6,18 @@
     <meta name="theme-color" content="#667eea">
     <title>消消乐 - Match 3 Game</title>
     <link rel="manifest" href="manifest.json">
+    <script>
+      // Register Service Worker
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/match3-game/sw.js')
+          .then(registration => {
+            console.log('ServiceWorker registration successful');
+          })
+          .catch(error => {
+            console.log('ServiceWorker registration failed:', error);
+          });
+      }
+    </script>
     <style>
         * {
             margin: 0;
