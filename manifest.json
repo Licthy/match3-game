@@ -1,0 +1,21 @@
+{
+  "name": "消消乐",
+  "short_name": "消消乐",
+  "description": "Match-3 消消乐游戏",
+  "start_url": "/match3-game/",
+  "display": "standalone",
+  "background_color": "#667eea",
+  "theme_color": "#667eea",
+  "icons": [
+    {
+      "src": "https://picsum.photos/192/192",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://picsum.photos/512/512",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
