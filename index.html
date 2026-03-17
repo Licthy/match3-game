@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>消消乐 - Match 3 Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .game-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .score-board {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            font-size: 1.2em;
+        }
+
+        .score, .moves {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px 20px;
+            border-radius: 10px;
+        }
+
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(8, 60px);
+            grid-template-rows: repeat(8, 60px);
+            gap: 5px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .gem {
+            width: 60px;
+            height: 60px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            user-select: none;
+        }
+
+        .gem:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.3);
+        }
+
+        .gem.selected {
+            box-shadow: 0 0 20px rgba(255, 255, 0, 0.8);
+            transform: scale(1.1);
+        }
+
+        .gem.matched {
+            animation: pop 0.3s forwards;
+        }
+
+        @keyframes pop {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.5; }
+            100% { transform: scale(0); opacity: 0; }
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.3);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        /* Gem colors */
+        .gem-red { background: linear-gradient(135deg, #ff6b6b, #ee5a6f); }
+        .gem-blue { background: linear-gradient(135deg, #4ecdc4, #5568d3); }
+        .gem-green { background: linear-gradient(135deg, #95d44e, #38ef7d); }
+        .gem-yellow { background: linear-gradient(135deg, #f7d794, #f5cd79); }
+        .gem-purple { background: linear-gradient(135deg, #a55eea, #8854d0); }
+        .gem-orange { background: linear-gradient(135deg, #ff9f43, #ff6b6b); }
+
+        .instructions {
+            margin-top: 20px;
+            text-align: center;
+            opacity: 0.9;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>消消乐</h1>
+        <div class="score-board">
+            <div class="score">分数: <span id="score">0</span></div>
+            <div class="moves">步数: <span id="moves">0</span></div>
+        </div>
+        <div id="game-board"></div>
+        <div class="controls">
+            <button onclick="resetGame()">重新开始</button>
+        </div>
+        <div class="instructions">
+            点击相邻的两个宝石交换位置，连成3个或以上即可消除得分
+        </div>
+    </div>
+
+    <script>
+        const BOARD_SIZE = 8;
+        const GEM_TYPES = ['🔴', '🔵', '🟢', '🟡', '🟣', '🟠'];
+        const GEM_CLASSES = ['gem-red', 'gem-blue', 'gem-green', 'gem-yellow', 'gem-purple', 'gem-orange'];
+
+        let board = [];
+        let selectedGem = null;
+        let score = 0;
+        let moves = 0;
+
+        function initBoard() {
+            board = [];
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                board[i] = [];
+                for (let j = 0; j < BOARD_SIZE; j++) {
+                    let gemType;
+                    do {
+                        gemType = Math.floor(Math.random() * GEM_TYPES.length);
+                    } while (wouldCreateMatch(i, j, gemType));
+                    board[i][j] = gemType;
+                }
+            }
+        }
+
+        function wouldCreateMatch(row, col, gemType) {
+            // Check horizontal
+            if (col >= 2 && board[row][col-1] === gemType && board[row][col-2] === gemType) {
+                return true;
+            }
+            // Check vertical
+            if (row >= 2 && board[row-1][col] === gemType && board[row-2][col] === gemType) {
+                return true;
+            }
+            return false;
+        }
+
+        function renderBoard() {
+            const gameBoard = document.getElementById('game-board');
+            gameBoard.innerHTML = '';
+
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                for (let j = 0; j < BOARD_SIZE; j++) {
+                    const gem = document.createElement('div');
+                    gem.className = `gem ${GEM_CLASSES[board[i][j]]}`;
+                    gem.textContent = GEM_TYPES[board[i][j]];
+                    gem.dataset.row = i;
+                    gem.dataset.col = j;
+                    gem.onclick = () => handleGemClick(i, j);
+                    gameBoard.appendChild(gem);
+                }
+            }
+
+            document.getElementById('score').textContent = score;
+            document.getElementById('moves').textContent = moves;
+        }
+
+        function handleGemClick(row, col) {
+            if (!selectedGem) {
+                selectedGem = { row, col };
+                highlightGem(row, col, true);
+            } else {
+                const prevRow = selectedGem.row;
+                const prevCol = selectedGem.col;
+
+                if (isAdjacent(prevRow, prevCol, row, col)) {
+                    swapGems(prevRow, prevCol, row, col);
+                    moves++;
+
+                    setTimeout(() => {
+                        if (!findMatches()) {
+                            swapGems(prevRow, prevCol, row, col);
+                            moves--;
+                            renderBoard();
+                        } else {
+                            processMatches();
+                        }
+                    }, 300);
+                }
+
+                highlightGem(prevRow, prevCol, false);
+                selectedGem = null;
+            }
+        }
+
+        function isAdjacent(r1, c1, r2, c2) {
+            const rowDiff = Math.abs(r1 - r2);
+            const colDiff = Math.abs(c1 - c2);
+            return (rowDiff === 1 && colDiff === 0) || (rowDiff === 0 && colDiff === 1);
+        }
+
+        function highlightGem(row, col, highlight) {
+            const gem = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+            if (gem) {
+                if (highlight) {
+                    gem.classList.add('selected');
+                } else {
+                    gem.classList.remove('selected');
+                }
+            }
+        }
+
+        function swapGems(r1, c1, r2, c2) {
+            const temp = board[r1][c1];
+            board[r1][c1] = board[r2][c2];
+            board[r2][c2] = temp;
+            renderBoard();
+        }
+
+        function findMatches() {
+            const matches = [];
+
+            // Check horizontal matches
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                for (let j = 0; j < BOARD_SIZE - 2; j++) {
+                    const type = board[i][j];
+                    if (type !== null && board[i][j+1] === type && board[i][j+2] === type) {
+                        let matchLength = 3;
+                        while (j + matchLength < BOARD_SIZE && board[i][j+matchLength] === type) {
+                            matchLength++;
+                        }
+                        for (let k = 0; k < matchLength; k++) {
+                            matches.push({row: i, col: j+k});
+                        }
+                        j += matchLength - 1;
+                    }
+                }
+            }
+
+            // Check vertical matches
+            for (let j = 0; j < BOARD_SIZE; j++) {
+                for (let i = 0; i < BOARD_SIZE - 2; i++) {
+                    const type = board[i][j];
+                    if (type !== null && board[i+1][j] === type && board[i+2][j] === type) {
+                        let matchLength = 3;
+                        while (i + matchLength < BOARD_SIZE && board[i+matchLength][j] === type) {
+                            matchLength++;
+                        }
+                        for (let k = 0; k < matchLength; k++) {
+                            matches.push({row: i+k, col: j});
+                        }
+                        i += matchLength - 1;
+                    }
+                }
+            }
+
+            return matches;
+        }
+
+        function processMatches() {
+            let matches = findMatches();
+
+            if (matches.length > 0) {
+                // Calculate score
+                score += matches.length * 10;
+                document.getElementById('score').textContent = score;
+
+                // Mark matched gems
+                const uniqueMatches = [...new Set(matches.map(m => `${m.row},${m.col}`))];
+                uniqueMatches.forEach(pos => {
+                    const [row, col] = pos.split(',').map(Number);
+                    const gem = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                    if (gem) {
+                        gem.classList.add('matched');
+                    }
+                });
+
+                // Remove matched gems after animation
+                setTimeout(() => {
+                    uniqueMatches.forEach(pos => {
+                        const [row, col] = pos.split(',').map(Number);
+                        board[row][col] = null;
+                    });
+
+                    dropGems();
+                    fillEmptySpaces();
+                    renderBoard();
+
+                    // Check for chain reactions
+                    setTimeout(() => {
+                        if (findMatches().length > 0) {
+                            processMatches();
+                        }
+                    }, 300);
+                }, 300);
+            }
+        }
+
+        function dropGems() {
+            for (let j = 0; j < BOARD_SIZE; j++) {
+                let emptyRow = BOARD_SIZE - 1;
+                for (let i = BOARD_SIZE - 1; i >= 0; i--) {
+                    if (board[i][j] !== null) {
+                        if (i !== emptyRow) {
+                            board[emptyRow][j] = board[i][j];
+                            board[i][j] = null;
+                        }
+                        emptyRow--;
+                    }
+                }
+            }
+        }
+
+        function fillEmptySpaces() {
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                for (let j = 0; j < BOARD_SIZE; j++) {
+                    if (board[i][j] === null) {
+                        board[i][j] = Math.floor(Math.random() * GEM_TYPES.length);
+                    }
+                }
+            }
+        }
+
+        function resetGame() {
+            score = 0;
+            moves = 0;
+            selectedGem = null;
+            initBoard();
+            renderBoard();
+        }
+
+        // Initialize
+        resetGame();
+    </script>
+</body>
+</html>
